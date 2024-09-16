@@ -77,6 +77,32 @@ confirm_buttons_ru = [[KeyboardButton(text="✅ Да"), KeyboardButton(text="❌
 
 
 
+
+citizen_button_uz = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🇺🇿 O'zbekiston Respublikasi fuqarosi")],
+        [KeyboardButton(text="🌐 Chet el fuqarosi")]
+    ],
+    resize_keyboard=True
+)
+
+citizen_button_en = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🇺🇿 Citizen of the Republic of Uzbekistan")],
+        [KeyboardButton(text="🌐 Foreign citizen")]
+    ],
+    resize_keyboard=True
+)
+
+citizen_button_ru = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🇺🇿 Гражданин Республики Узбекистан")],
+        [KeyboardButton(text="🌐 Иностранный гражданин")]
+    ],
+    resize_keyboard=True
+)
+
+
 main_button_uz = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text='📋 Murojaat yo\'llash'), KeyboardButton(text='🇺🇿 Tilni o\'zgartirish')]

@@ -32,8 +32,8 @@ TEXTS = {
         'enter_request': "Murojaatingizni kiriting:",
         'confirm': "Ma'lumotlarni tasdiqlaysizmi?",
         'data_submitted': "✅ Ma'lumotlaringiz muvaffaqiyatli yuborildi! \nIltimos, tugmalardan birini tanlang:",
-        'data_cancelled': "Ma'lumotlaringiz bekor qilindi.",
-        'process_cancelled': "Jarayon bekor qilindi. Bosh sahifaga qaytdingiz.",
+        'data_cancelled': "Ma'lumotlaringiz bekor qilindi. \nIltimos, tugmalardan birini tanlang:",
+        'process_cancelled': "Jarayon bekor qilindi. \nIltimos, tugmalardan birini tanlang:",
         'language_select': "Tilni tanlang:",
         'lang_buttons': ["O'zbekcha", "English", "Русский"],
         'full_name': 'F.I.Sh',
@@ -41,7 +41,10 @@ TEXTS = {
         'phone': 'Telefon',
         'region': 'Viloyat',
         'request': 'Murojaat',
-        'confirm': "Tasdiqlaysizmi?"
+        'confirm': "Tasdiqlaysizmi?",
+        'citizenship_question': "O'zbekiston Respublikasi fuqarosimisiz?",
+        'invalid_citizen_response': "Iltimos, taqdim etilgan tugmalardan birini tanlang.",
+        'citizenship': "Fuqaroligi",
     },
     'en': {
         'start': "Hello, welcome to the inquiry bot! \nPlease choose one of the buttons:",
@@ -53,8 +56,8 @@ TEXTS = {
         'enter_request': "Enter your inquiry:",
         'confirm': "Do you confirm the details?",
         'data_submitted': "✅ Your information has been successfully submitted! \nPlease choose one of the buttons:",
-        'data_cancelled': "Your information has been canceled.",
-        'process_cancelled': "Process canceled. You have returned to the main page.",
+        'data_cancelled': "Your information has been canceled. \nPlease choose one of the buttons:",
+        'process_cancelled': "Process canceled. \nPlease choose one of the buttons:",
         'language_select': "Select your language:",
         'lang_buttons': ["O'zbekcha", "English", "Русский"],
         'full_name': 'Full Name',
@@ -62,7 +65,11 @@ TEXTS = {
         'phone': 'Phone',
         'region': 'Region',
         'request': 'Request',
-        'confirm': "Do you confirm?"
+        'confirm': "Do you confirm?",
+        'citizenship_question': "Are you a citizen of the Republic of Uzbekistan?",
+        'invalid_citizen_response': "Please select one of the provided buttons.",
+        'citizenship':'Citizenship'
+        
     },
     'ru': {
         'start': "Здравствуйте, добро пожаловать в бот для запросов! \nПожалуйста, выберите одну из кнопок:",
@@ -74,8 +81,8 @@ TEXTS = {
         'enter_request': "Введите ваш запрос:",
         'confirm': "Подтверждаете ли вы информацию?",
         'data_submitted': "✅ Ваша информация успешно отправлена! \nПожалуйста, выберите одну из кнопок:",
-        'data_cancelled': "Ваша информация отменена.",
-        'process_cancelled': "Процесс отменен. Вы вернулись на главную страницу.",
+        'data_cancelled': "Ваша информация отменена. \nПожалуйста, выберите одну из кнопок:",
+        'process_cancelled': "Процесс отменен. \nПожалуйста, выберите одну из кнопок:",
         'language_select': "Выберите язык:",
         'lang_buttons': ["O'zbekcha", "English", "Русский"],
         'full_name': 'Ф.И.О',
@@ -83,7 +90,10 @@ TEXTS = {
         'phone': 'Телефон',
         'region': 'Регион',
         'request': 'Запрос',
-        'confirm': "Вы подтверждаете?"
+        'confirm': "Вы подтверждаете?",
+        'citizenship_question': "Вы являетесь гражданином Республики Узбекистан?",
+        'invalid_citizen_response': "Пожалуйста, выберите одну из предложенных кнопок.",
+        'citizenship':'Гражданство'
     }
 }
 
@@ -92,6 +102,7 @@ class Form(StatesGroup):
     full_name = State()
     age = State()
     contact = State()
+    citizen = State()
     region = State()
     request = State()
     confirm = State()
@@ -180,6 +191,29 @@ async def enter_contact(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
     await state.update_data(contact=message.contact.phone_number)
+    await state.set_state(Form.citizen)
+    if language == 'uz':
+        citizen_button = citizen_button_uz
+    elif language == 'en':
+        citizen_button = citizen_button_en
+    else:
+        citizen_button = citizen_button_ru
+    await message.answer(TEXTS[language]['citizenship_question'], reply_markup=citizen_button)
+
+@dp.message(Form.citizen)
+async def enter_region(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    language = user_data.get('language', 'uz')
+    valid_responses = {
+        'uz': ["🇺🇿 O'zbekiston Respublikasi fuqarosi", "🌐 Chet el fuqarosi"],
+        'en': ["🇺🇿 Citizen of the Republic of Uzbekistan", "🌐 Foreign citizen"],
+        'ru': ["🇺🇿 Гражданин Республики Узбекистан", "🌐 Иностранный гражданин"]
+    }
+    
+    if message.text not in valid_responses[language]:
+        await message.answer(TEXTS[language]['invalid_citizen_response'])
+        return
+    await state.update_data(citizen=message.text)
     await state.set_state(Form.region)
     if language == 'uz':
         region_keyboard = region_keyboard_uz
@@ -187,6 +221,7 @@ async def enter_contact(message: types.Message, state: FSMContext):
         region_keyboard = region_keyboard_en
     else:
         region_keyboard = region_keyboard_ru
+
     await message.answer(TEXTS[language]['enter_region'], reply_markup=region_keyboard)
 
 
@@ -208,6 +243,7 @@ async def enter_request(message: types.Message, state: FSMContext):
     f"👨‍💼 {TEXTS[language]['full_name']}: {user_data.get('full_name', 'N/A')}\n"
     f"🕑 {TEXTS[language]['age']}: {user_data.get('age', 'N/A')}\n"
     f"📞 {TEXTS[language]['phone']}: {user_data.get('contact', 'N/A')}\n"
+    f"🌐 {TEXTS[language]['citizenship']}: {user_data.get('citizen', 'N/A')}\n"
     f"📌 {TEXTS[language]['region']}: {user_data.get('region', 'N/A')}\n"
     f"📋 {TEXTS[language]['request']}: {user_data.get('request', 'N/A')}\n\n"
     f"{TEXTS[language]['confirm']}"
@@ -228,7 +264,10 @@ async def process_confirm(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
     telegram_username = message.from_user.username
-
+    if user_data['citizen'] in ["🇺🇿 O'zbekiston Respublikasi fuqarosi", "🇺🇿 Citizen of the Republic of Uzbekistan", "🇺🇿 Гражданин Республики Узбекистан"]:
+        response = "🇺🇿 O'zbekiston Respublikasi fuqarosi"
+    else:
+        response = '🌐 Chet el fuqarosi'
     await bot.send_message(
         chat_id=CHANNEL_ID,
         text=(f"<b>Yangi murojaat:</b>\n\n"
@@ -236,6 +275,7 @@ async def process_confirm(message: types.Message, state: FSMContext):
               f"🕑 Yosh: {user_data['age']}\n"
               f"📞Telefon: {user_data['contact']}\n"
               f"📪 Telegram: @{telegram_username}\n"
+              f"🌐 Fuqaroligi: {response}\n"
               f"📌 Viloyat: {user_data['region']}\n"
               f"📋 Murojaat: {user_data['request']}"
               ),
@@ -254,15 +294,34 @@ async def process_confirm(message: types.Message, state: FSMContext):
 async def process_cancel(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
-    await message.answer(TEXTS[language]['data_cancelled'], reply_markup=ReplyKeyboardRemove())
+    if language=='uz':
+            main_button = main_button_uz
+    elif language=='en':
+            main_button = main_button_en
+    else:
+            main_button = main_button_ru
+    await message.answer(TEXTS[language]['data_cancelled'], reply_markup=main_button)
     await state.clear()
 
 
 @dp.message(F.text.in_(["❌ Bekor qilish", "❌ Cancel", "❌ Отмена"]))
 async def cancel_process(message: types.Message, state: FSMContext):
+    telegram_id = message.from_user.id
+    result = check_user(telegram_id=telegram_id)
+    
+    language = 'uz'
+    
+    if result.status_code == 200:
+        language = result.json().get('language', 'uz')
+    if language=='uz':
+            main_button = main_button_uz
+    elif language=='en':
+            main_button = main_button_en
+    else:
+            main_button = main_button_ru
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
-    await message.answer(TEXTS[language]['process_cancelled'], reply_markup=ReplyKeyboardRemove())
+    await message.answer(TEXTS[language]['process_cancelled'], reply_markup=main_button)
     await state.clear()
 
 
