@@ -28,7 +28,7 @@ TEXTS = {
         'enter_name': "Iltimos, F.I.Sh. ni kirting:",
         'enter_age': "Yoshingizni kiriting:",
         'enter_contact': "Telefon raqamingizni yuboring:",
-        'enter_region': "Qaysi viloyatdan murojaat yo'llayapsiz?",
+        'enter_region': "Qaysi tumandan murojaat yo'llayapsiz?",
         'enter_request': "Murojaatingizni kiriting:",
         'confirm': "Ma'lumotlarni tasdiqlaysizmi?",
         'data_submitted': "✅ Ma'lumotlaringiz muvaffaqiyatli yuborildi! \nIltimos, tugmalardan birini tanlang:",
@@ -40,11 +40,11 @@ TEXTS = {
         'age': 'Yosh',
         'phone': 'Telefon',
         'region': 'Viloyat',
+        'district':'Tuman',
         'request': 'Murojaat',
         'confirm': "Tasdiqlaysizmi?",
-        'citizenship_question': "O'zbekiston Respublikasi fuqarosimisiz?",
-        'invalid_citizen_response': "Iltimos, taqdim etilgan tugmalardan birini tanlang.",
-        'citizenship': "Fuqaroligi",
+        'citizenship': "Chet el fuqarosi",
+        'province':"Viloyatlardan birini tanlang. Agar siz tug'ilgan joy bu yerda yo'q bo'lsa, Boshqa tugmasini bosib kiritishingiz mumkin."
     },
     'en': {
         'start': "Hello, welcome to the inquiry bot! \nPlease choose one of the buttons:",
@@ -64,11 +64,11 @@ TEXTS = {
         'age': 'Age',
         'phone': 'Phone',
         'region': 'Region',
+        'district':'District',
         'request': 'Request',
         'confirm': "Do you confirm?",
-        'citizenship_question': "Are you a citizen of the Republic of Uzbekistan?",
-        'invalid_citizen_response': "Please select one of the provided buttons.",
-        'citizenship':'Citizenship'
+        'citizenship':'Foreign citizen',
+        'province':"Select one of the regions. If your place of birth is not listed here, you can press the 'Other' button to enter it."
         
     },
     'ru': {
@@ -89,11 +89,11 @@ TEXTS = {
         'age': 'Возраст',
         'phone': 'Телефон',
         'region': 'Регион',
+        'district':'Округ',
         'request': 'Запрос',
         'confirm': "Вы подтверждаете?",
-        'citizenship_question': "Вы являетесь гражданином Республики Узбекистан?",
-        'invalid_citizen_response': "Пожалуйста, выберите одну из предложенных кнопок.",
-        'citizenship':'Гражданство'
+        'citizenship':'Иностранный гражданин',
+        'province':"Выберите один из регионов. Если вашего места рождения здесь нет, вы можете нажать кнопку 'Другие' и ввести его."
     }
 }
 
@@ -102,7 +102,8 @@ class Form(StatesGroup):
     full_name = State()
     age = State()
     contact = State()
-    citizen = State()
+    province = State()
+    region = State()
     region = State()
     request = State()
     confirm = State()
@@ -191,38 +192,43 @@ async def enter_contact(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
     await state.update_data(contact=message.contact.phone_number)
-    await state.set_state(Form.citizen)
+    await state.set_state(Form.province)
     if language == 'uz':
-        citizen_button = citizen_button_uz
+        province_buttons = province_buttons_uz
     elif language == 'en':
-        citizen_button = citizen_button_en
+        province_buttons = province_buttons_en
     else:
-        citizen_button = citizen_button_ru
-    await message.answer(TEXTS[language]['citizenship_question'], reply_markup=citizen_button)
+        province_buttons = province_buttons_ru
+    await message.answer(TEXTS[language]['province'], reply_markup=province_buttons)
 
-@dp.message(Form.citizen)
-async def enter_region(message: types.Message, state: FSMContext):
+@dp.message(Form.province)
+async def enter_province(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
-    valid_responses = {
-        'uz': ["🇺🇿 O'zbekiston Respublikasi fuqarosi", "🌐 Chet el fuqarosi"],
-        'en': ["🇺🇿 Citizen of the Republic of Uzbekistan", "🌐 Foreign citizen"],
-        'ru': ["🇺🇿 Гражданин Республики Узбекистан", "🌐 Иностранный гражданин"]
+    others = {
+        'uz':"Boshqa",
+        'en':"Other",
+        'ru':"Другой"
+    }
+    if  message.text == others[language]:
+        await state.update_data(province=TEXTS[language]['citizenship'])
+    else:
+        await state.update_data(province=message.text)
+    
+    namangan_names = {
+        'uz': "Namangan viloyati",
+        'en': "Namangan region",
+        'ru': "Наманганская область"
     }
     
-    if message.text not in valid_responses[language]:
-        await message.answer(TEXTS[language]['invalid_citizen_response'])
-        return
-    await state.update_data(citizen=message.text)
-    await state.set_state(Form.region)
-    if language == 'uz':
-        region_keyboard = region_keyboard_uz
-    elif language == 'en':
-        region_keyboard = region_keyboard_en
+    if message.text == namangan_names[language]:
+        await state.set_state(Form.region)
+        region_buttons = region_keyboard_uz if language == 'uz' else region_keyboard_en if language == 'en' else region_keyboard_ru
+        await message.answer(TEXTS[language]['enter_region'], reply_markup=region_buttons)
+        
     else:
-        region_keyboard = region_keyboard_ru
-
-    await message.answer(TEXTS[language]['enter_region'], reply_markup=region_keyboard)
+        await state.set_state(Form.request)
+        await message.answer(TEXTS[language]['enter_request'], reply_markup=ReplyKeyboardRemove())
 
 
 @dp.message(Form.region, F.text.in_(region_buttons_uz + region_buttons_en + region_buttons_ru))
@@ -239,15 +245,25 @@ async def enter_request(message: types.Message, state: FSMContext):
     await state.update_data(request=message.text)
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
-    confirmation_text = (
-    f"👨‍💼 {TEXTS[language]['full_name']}: {user_data.get('full_name', 'N/A')}\n"
-    f"🕑 {TEXTS[language]['age']}: {user_data.get('age', 'N/A')}\n"
-    f"📞 {TEXTS[language]['phone']}: {user_data.get('contact', 'N/A')}\n"
-    f"🌐 {TEXTS[language]['citizenship']}: {user_data.get('citizen', 'N/A')}\n"
-    f"📌 {TEXTS[language]['region']}: {user_data.get('region', 'N/A')}\n"
-    f"📋 {TEXTS[language]['request']}: {user_data.get('request', 'N/A')}\n\n"
-    f"{TEXTS[language]['confirm']}"
-    )
+    if 'region' in user_data:
+        confirmation_text = (
+        f"👨‍💼 {TEXTS[language]['full_name']}: {user_data.get('full_name', 'N/A')}\n"
+        f"🕑 {TEXTS[language]['age']}: {user_data.get('age', 'N/A')}\n"
+        f"📞 {TEXTS[language]['phone']}: {user_data.get('contact', 'N/A')}\n"
+        f"🌐 {TEXTS[language]['region']}: {user_data.get('province', 'N/A')}\n"
+        f"📌 {TEXTS[language]['district']}: {user_data.get('region', 'N/A')}\n"
+        f"📋 {TEXTS[language]['request']}: {user_data.get('request', 'N/A')}\n\n"
+        f"{TEXTS[language]['confirm']}"
+        )
+    else:
+        confirmation_text = (
+        f"👨‍💼 {TEXTS[language]['full_name']}: {user_data.get('full_name', 'N/A')}\n"
+        f"🕑 {TEXTS[language]['age']}: {user_data.get('age', 'N/A')}\n"
+        f"📞 {TEXTS[language]['phone']}: {user_data.get('contact', 'N/A')}\n"
+        f"🌐 {TEXTS[language]['region']}: {user_data.get('province', 'N/A')}\n"
+        f"📋 {TEXTS[language]['request']}: {user_data.get('request', 'N/A')}\n\n"
+        f"{TEXTS[language]['confirm']}"
+        )
     await state.set_state(Form.confirm)
     if language == 'uz':
         confirm_keyboard = ReplyKeyboardMarkup(keyboard=confirm_buttons_uz, resize_keyboard=True)
@@ -264,22 +280,31 @@ async def process_confirm(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
     telegram_username = message.from_user.username
-    if user_data['citizen'] in ["🇺🇿 O'zbekiston Respublikasi fuqarosi", "🇺🇿 Citizen of the Republic of Uzbekistan", "🇺🇿 Гражданин Республики Узбекистан"]:
-        response = "🇺🇿 O'zbekiston Respublikasi fuqarosi"
+    if 'region' in user_data:
+        await bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=(f"<b>Yangi murojaat:</b>\n\n"
+                f"👨‍💼 F.I.Sh: {user_data['full_name']}\n"
+                f"🕑 Yosh: {user_data['age']}\n"
+                f"📞Telefon: {user_data['contact']}\n"
+                f"📪 Telegram: @{telegram_username}\n"
+                f"🌐 Viloyat: {user_data['province']}\n"
+                f"📌 Tuman: {user_data['region']}\n"
+                f"📋 Murojaat: {user_data['request']}"
+                ),
+        )
     else:
-        response = '🌐 Chet el fuqarosi'
-    await bot.send_message(
-        chat_id=CHANNEL_ID,
-        text=(f"<b>Yangi murojaat:</b>\n\n"
-              f"👨‍💼 F.I.Sh: {user_data['full_name']}\n"
-              f"🕑 Yosh: {user_data['age']}\n"
-              f"📞Telefon: {user_data['contact']}\n"
-              f"📪 Telegram: @{telegram_username}\n"
-              f"🌐 Fuqaroligi: {response}\n"
-              f"📌 Viloyat: {user_data['region']}\n"
-              f"📋 Murojaat: {user_data['request']}"
-              ),
-    )
+        await bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=(f"<b>Yangi murojaat:</b>\n\n"
+                f"👨‍💼 F.I.Sh: {user_data['full_name']}\n"
+                f"🕑 Yosh: {user_data['age']}\n"
+                f"📞Telefon: {user_data['contact']}\n"
+                f"📪 Telegram: @{telegram_username}\n"
+                f"🌐 Viloyat: {user_data['province']}\n"
+                f"📋 Murojaat: {user_data['request']}"
+                ),
+            )
     if language=='uz':
             main_button = main_button_uz
     elif language=='en':
