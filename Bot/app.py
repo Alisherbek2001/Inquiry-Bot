@@ -26,7 +26,7 @@ TEXTS = {
         'start': "Assalomu alaykum, siz murojaat botiga tashrif buyurdingiz! \nIltimos, tugmalardan birini tanlang:",
         'start_again': "Qaytganingizdan hursandmiz! \nIltimos, tugmalardan birini tanlang:",
         'enter_name': "Iltimos, F.I.Sh. ni kirting:",
-        'enter_age': "Yoshingizni kiriting:",
+        'enter_age': "Tug'ilgan kun oy yilingizni kiriting: ",
         'enter_contact': "Telefon raqamingizni yuboring:",
         'enter_region': "Qaysi tumandan murojaat yo'llayapsiz?",
         'enter_request': "Murojaatingizni kiriting:",
@@ -37,7 +37,7 @@ TEXTS = {
         'language_select': "Tilni tanlang:",
         'lang_buttons': ["O'zbekcha", "English", "Русский"],
         'full_name': 'F.I.Sh',
-        'age': 'Yosh',
+        'birth_date': "Tug'ilgan yil",
         'phone': 'Telefon',
         'region': 'Viloyat',
         'district':'Tuman',
@@ -50,7 +50,7 @@ TEXTS = {
         'start': "Hello, welcome to the inquiry bot! \nPlease choose one of the buttons:",
         'start_again': "We're glad you're back! \nPlease choose one of the buttons:",
         'enter_name': "Please enter your full name:",
-        'enter_age': "Please enter your age:",
+        'enter_age': "Enter your birth date, month, and year: ",
         'enter_contact': "Please send your phone number:",
         'enter_region': "Which region are you submitting from?",
         'enter_request': "Enter your inquiry:",
@@ -61,7 +61,7 @@ TEXTS = {
         'language_select': "Select your language:",
         'lang_buttons': ["O'zbekcha", "English", "Русский"],
         'full_name': 'Full Name',
-        'age': 'Age',
+        'birth_date': 'Year of birth',
         'phone': 'Phone',
         'region': 'Region',
         'district':'District',
@@ -75,7 +75,7 @@ TEXTS = {
         'start': "Здравствуйте, добро пожаловать в бот для запросов! \nПожалуйста, выберите одну из кнопок:",
         'start_again': "Мы рады, что вы вернулись! \nПожалуйста, выберите одну из кнопок:",
         'enter_name': "Пожалуйста, введите ваше полное имя:",
-        'enter_age': "Введите ваш возраст:",
+        'enter_age': "Введите вашу дату, месяц и год рождения:",
         'enter_contact': "Отправьте ваш номер телефона:",
         'enter_region': "Из какого региона вы отправляете запрос?",
         'enter_request': "Введите ваш запрос:",
@@ -86,7 +86,7 @@ TEXTS = {
         'language_select': "Выберите язык:",
         'lang_buttons': ["O'zbekcha", "English", "Русский"],
         'full_name': 'Ф.И.О',
-        'age': 'Возраст',
+        'birth_date': 'Год рождения',
         'phone': 'Телефон',
         'region': 'Регион',
         'district':'Округ',
@@ -97,10 +97,18 @@ TEXTS = {
     }
 }
 
+HELP_TEXTS = {
+    'birth_date': {
+        'uz': "Namuna: 15.05.2000",
+        'en': "Example: 15.05.2000",
+        'ru': "Пример: 15.05.2000"
+    }}
+
+
 class Form(StatesGroup):
     language = State()
     full_name = State()
-    age = State()
+    birth_date = State()
     contact = State()
     province = State()
     region = State()
@@ -170,14 +178,14 @@ async def enter_full_name(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
     await state.update_data(full_name=message.text)
-    await state.set_state(Form.age)
-    await message.answer(TEXTS[language]['enter_age'])
+    await state.set_state(Form.birth_date)
+    await message.answer(f"{TEXTS[language]['enter_age']}\n<i>{HELP_TEXTS['birth_date'][language]}</i>")
 
-@dp.message(Form.age)
+@dp.message(Form.birth_date)
 async def enter_age(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     language = user_data.get('language', 'uz')
-    await state.update_data(age=message.text)
+    await state.update_data(birth_date=message.text)
     await state.set_state(Form.contact)
     if language == 'uz':
         contact_keyboard = contact_keyboard_uz
@@ -248,7 +256,7 @@ async def enter_request(message: types.Message, state: FSMContext):
     if 'region' in user_data:
         confirmation_text = (
         f"👨‍💼 {TEXTS[language]['full_name']}: {user_data.get('full_name', 'N/A')}\n"
-        f"🕑 {TEXTS[language]['age']}: {user_data.get('age', 'N/A')}\n"
+        f"🕑 {TEXTS[language]['birth_date']}: {user_data.get('birth_date', 'N/A')}\n"
         f"📞 {TEXTS[language]['phone']}: {user_data.get('contact', 'N/A')}\n"
         f"🌐 {TEXTS[language]['region']}: {user_data.get('province', 'N/A')}\n"
         f"📌 {TEXTS[language]['district']}: {user_data.get('region', 'N/A')}\n"
@@ -258,7 +266,7 @@ async def enter_request(message: types.Message, state: FSMContext):
     else:
         confirmation_text = (
         f"👨‍💼 {TEXTS[language]['full_name']}: {user_data.get('full_name', 'N/A')}\n"
-        f"🕑 {TEXTS[language]['age']}: {user_data.get('age', 'N/A')}\n"
+        f"🕑 {TEXTS[language]['birth_date']}: {user_data.get('birth_date', 'N/A')}\n"
         f"📞 {TEXTS[language]['phone']}: {user_data.get('contact', 'N/A')}\n"
         f"🌐 {TEXTS[language]['region']}: {user_data.get('province', 'N/A')}\n"
         f"📋 {TEXTS[language]['request']}: {user_data.get('request', 'N/A')}\n\n"
@@ -285,7 +293,7 @@ async def process_confirm(message: types.Message, state: FSMContext):
             chat_id=CHANNEL_ID,
             text=(f"<b>Yangi murojaat:</b>\n\n"
                 f"👨‍💼 F.I.Sh: {user_data['full_name']}\n"
-                f"🕑 Yosh: {user_data['age']}\n"
+                f"🕑 Tug'ilgan yil: {user_data['birth_date']}\n"
                 f"📞Telefon: {user_data['contact']}\n"
                 f"📪 Telegram: @{telegram_username}\n"
                 f"🌐 Viloyat: {user_data['province']}\n"
@@ -298,7 +306,7 @@ async def process_confirm(message: types.Message, state: FSMContext):
             chat_id=CHANNEL_ID,
             text=(f"<b>Yangi murojaat:</b>\n\n"
                 f"👨‍💼 F.I.Sh: {user_data['full_name']}\n"
-                f"🕑 Yosh: {user_data['age']}\n"
+                f"🕑 Tug'ilgan yil: {user_data['birth_date']}\n"
                 f"📞Telefon: {user_data['contact']}\n"
                 f"📪 Telegram: @{telegram_username}\n"
                 f"🌐 Viloyat: {user_data['province']}\n"
